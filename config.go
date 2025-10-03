@@ -18,6 +18,8 @@ const (
 	glyphWidth   = 8
 	glyphHeight  = 7
 	glyphSpacing = 1
+	
+	// Visual spacing (terminal line height cannot be changed, but we can adjust visual perception)
 
 	// Keyboard input buffer size
 	keyBufferSize = 10

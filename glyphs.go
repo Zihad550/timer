@@ -1,6 +1,6 @@
 package main
 
-// Nothing-inspired dot-matrix glyphs (7x8 size)
+// Nothing-inspired dot-matrix glyphs (7x8 size) - compact vertical spacing
 var glyphs = map[rune][]string{
 	'0': {
 		"   ⬤⬤⬤  ",
