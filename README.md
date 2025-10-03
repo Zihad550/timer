@@ -18,6 +18,10 @@ A minimal, blazing-fast TUI countdown timer and stopwatch for the terminal. Buil
 ### Using Go Install
 
 ```bash
+# Install latest stable version
+go install github.com/Zihad550/timer@v0.1.0
+
+# Or install latest (may show development version)
 go install github.com/Zihad550/timer@latest
 ```
 
