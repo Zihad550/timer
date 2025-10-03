@@ -17,7 +17,7 @@ const (
 	// Big text glyph dimensions
 	glyphWidth   = 8
 	glyphHeight  = 7
-	glyphSpacing = 2
+	glyphSpacing = 1
 
 	// Keyboard input buffer size
 	keyBufferSize = 10

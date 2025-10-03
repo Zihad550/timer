@@ -43,7 +43,7 @@ func renderBigTime(timeStr string, termWidth, termHeight int) string {
 			}
 			line.WriteString(glyph[row])
 			if i < len(timeStr)-1 {
-				line.WriteString("  ") // 2 spaces between characters
+				line.WriteString(strings.Repeat(" ", glyphSpacing))
 			}
 		}
 		lines = append(lines, line.String())
