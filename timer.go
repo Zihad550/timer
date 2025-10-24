@@ -8,6 +8,46 @@ import (
 	"time"
 )
 
+// parseInput parses accumulated bytes into a key byte or ignores sequences
+func parseInput(seq []byte) (byte, bool) {
+	if len(seq) == 0 {
+		return 0, false
+	}
+	if len(seq) == 1 {
+		if seq[0] == 0x1b {
+			return 0, false // Wait for more or timeout
+		}
+		// Single key
+		return seq[0], true
+	}
+	// Check for complete escape sequences
+	if seq[0] == 0x1b {
+		// Mouse sequences: \033[M or \033[<...
+		if len(seq) >= 3 && (seq[1] == '[' || seq[1] == 'M') {
+			// Wait for end: for [ it's variable, for M it's 6 bytes
+			if seq[1] == 'M' && len(seq) >= 6 {
+				return 0, true // Ignore mouse
+			}
+			if seq[1] == '[' {
+				// Extended mouse ends with 'm' or 'M'
+				if seq[len(seq)-1] == 'm' || seq[len(seq)-1] == 'M' {
+					return 0, true // Ignore mouse
+				}
+				// If not ended, continue accumulating
+				return 0, false
+			}
+		}
+		// Other escape sequences (e.g., arrow keys), ignore for now
+		if len(seq) >= 3 && seq[len(seq)-1] >= 0x40 && seq[len(seq)-1] <= 0x7E {
+			return 0, true // Ignore other escapes
+		}
+		// Incomplete, continue
+		return 0, false
+	}
+	// Should not reach here, but if multiple bytes not starting with ESC, treat as single (though unlikely)
+	return seq[0], true
+}
+
 // getTickerInterval returns the appropriate ticker interval based on duration
 func getTickerInterval(duration time.Duration) time.Duration {
 	if duration == 0 {
@@ -52,6 +92,16 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 		}
 	}()
 
+	// Enable mouse tracking if fullscreen
+	if useFullscreen {
+		fmt.Print(mouseOn)
+		defer fmt.Print(mouseOff)
+	}
+
+	// Channel for quit signal
+	quitCh := make(chan struct{})
+	defer close(quitCh)
+
 	// Channel for keyboard input
 	keysCh := make(chan byte, keyBufferSize)
 	defer close(keysCh)
@@ -59,23 +109,71 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 	// Start keyboard reader goroutine (blocking read, low CPU)
 	fd := int(syscall.Stdin)
 	go func() {
-		buf := make([]byte, 1)
+		var seq []byte
+		var timer *time.Timer
+		var timerCh <-chan time.Time
 		for {
-			// Blocking read - this will wait for input without consuming CPU
-			n, err := syscall.Read(fd, buf)
-			if err != nil {
-				// Only exit on real errors
-				if err != syscall.EINTR {
+			buf := make([]byte, 1)
+			readCh := make(chan []byte, 1)
+			go func() {
+				n, err := syscall.Read(fd, buf)
+				if err != nil {
+					readCh <- nil
 					return
 				}
-				continue
-			}
-			if n > 0 {
-				select {
-				case keysCh <- buf[0]:
-				default:
-					// Drop key if channel is full
+				if n > 0 {
+					readCh <- buf[:n]
+				} else {
+					readCh <- []byte{}
 				}
+			}()
+			select {
+			case data := <-readCh:
+				if data == nil {
+					// error
+					if timer != nil {
+						timer.Stop()
+					}
+					return
+				}
+				seq = append(seq, data[0])
+				if timer != nil {
+					timer.Stop()
+					timer = nil
+					timerCh = nil
+				}
+				if key, ok := parseInput(seq); ok {
+					if key != 0 {
+						select {
+						case keysCh <- key:
+						case <-quitCh:
+							return
+						default:
+							// Drop key if channel is full
+						}
+					}
+					seq = nil
+				} else if len(seq) == 1 && seq[0] == 0x1b {
+					// Start timer for ESC
+					timer = time.NewTimer(50 * time.Millisecond)
+					timerCh = timer.C
+				}
+			case <-timerCh:
+				// Timeout, treat as ESC
+				select {
+				case keysCh <- 0x1b:
+				case <-quitCh:
+					return
+				default:
+				}
+				seq = nil
+				timer = nil
+				timerCh = nil
+			case <-quitCh:
+				if timer != nil {
+					timer.Stop()
+				}
+				return
 			}
 		}
 	}()
@@ -140,7 +238,7 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 				// Force re-render
 				lastRenderedSec = -1
 
-			case 'q', 'Q': // q or Q - quit
+			case 'q', 'Q', 0x1b: // q, Q, or ESC - quit
 				fmt.Print("\r\nquitting...\r\n")
 				return nil
 

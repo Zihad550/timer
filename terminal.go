@@ -17,8 +17,10 @@ const (
 	altScreen   = "\033[?1049h"
 	mainScreen  = "\033[?1049l"
 	resetStyle  = "\033[0m"
-	blueColor   = "\033[34m" // Blue text color
-	redColor    = "\033[31m" // Red text color
+	blueColor   = "\033[34m"    // Blue text color
+	redColor    = "\033[31m"    // Red text color
+	mouseOn     = "\033[?1000h" // Enable basic mouse tracking
+	mouseOff    = "\033[?1000l" // Disable mouse tracking
 )
 
 func moveCursor(row, col int) string {
