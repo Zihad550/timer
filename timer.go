@@ -122,7 +122,7 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 	for {
 		select {
 		case <-sigCh:
-			return fmt.Errorf("interrupted")
+			return nil
 
 		case key := <-keysCh:
 			// Handle keyboard input
@@ -145,7 +145,7 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 				return nil
 
 			case 0x03: // Ctrl+C
-				return fmt.Errorf("interrupted")
+				return nil
 			}
 
 		case <-ticker.C:
