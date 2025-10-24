@@ -140,7 +140,7 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 				// Force re-render
 				lastRenderedSec = -1
 
-			case 'q', 'Q', 0x1b: // q, Q, or ESC - quit
+			case 'q', 'Q': // q or Q - quit
 				fmt.Print("\r\nquitting...\r\n")
 				return nil
 
