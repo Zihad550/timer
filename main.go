@@ -64,9 +64,20 @@ func main() {
 	// Merge short/long flags - fullscreen is default, inline disables it
 	useInline := *inlineMode || *inlineModeS
 
+	// Channel for timer summary
+	summaryCh := make(chan TimerSummary, 1)
+
 	// Run timer (fullscreen unless inline flag is set)
-	if err := runTimer(duration, !useInline); err != nil {
+	if err := runTimer(duration, !useInline, summaryCh); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Receive and print summary
+	summary := <-summaryCh
+	fmt.Printf("Start: %s\n", summary.Start.Format("2006-01-02 15:04:05"))
+	fmt.Printf("End: %s\n", summary.End.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Duration: %s\n", summary.Duration)
+	fmt.Printf("Mode: %s\n", summary.Mode)
+	fmt.Printf("Finished: %t\n", summary.Finished)
 }

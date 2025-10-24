@@ -63,7 +63,7 @@ func getTickerInterval(duration time.Duration) time.Duration {
 	return tickIntervalSlow
 }
 
-func runTimer(duration time.Duration, useFullscreen bool) error {
+func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- TimerSummary) error {
 	// Determine if counter mode (duration == 0)
 	isCounter := duration == 0
 
@@ -220,6 +220,22 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 	for {
 		select {
 		case <-sigCh:
+			end := time.Now()
+			effectiveDuration := time.Since(start) - totalPausedDuration
+			if paused {
+				effectiveDuration -= time.Since(pauseStart)
+			}
+			mode := "timer"
+			if isCounter {
+				mode = "counter"
+			}
+			summaryCh <- TimerSummary{
+				Start:    start,
+				End:      end,
+				Duration: effectiveDuration,
+				Mode:     mode,
+				Finished: false,
+			}
 			return nil
 
 		case key := <-keysCh:
@@ -240,9 +256,41 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 
 			case 'q', 'Q', 0x1b: // q, Q, or ESC - quit
 				fmt.Print("\r\nquitting...\r\n")
+				end := time.Now()
+				effectiveDuration := time.Since(start) - totalPausedDuration
+				if paused {
+					effectiveDuration -= time.Since(pauseStart)
+				}
+				mode := "timer"
+				if isCounter {
+					mode = "counter"
+				}
+				summaryCh <- TimerSummary{
+					Start:    start,
+					End:      end,
+					Duration: effectiveDuration,
+					Mode:     mode,
+					Finished: false,
+				}
 				return nil
 
 			case 0x03: // Ctrl+C
+				end := time.Now()
+				effectiveDuration := time.Since(start) - totalPausedDuration
+				if paused {
+					effectiveDuration -= time.Since(pauseStart)
+				}
+				mode := "timer"
+				if isCounter {
+					mode = "counter"
+				}
+				summaryCh <- TimerSummary{
+					Start:    start,
+					End:      end,
+					Duration: effectiveDuration,
+					Mode:     mode,
+					Finished: false,
+				}
 				return nil
 			}
 
@@ -266,6 +314,18 @@ func runTimer(duration time.Duration, useFullscreen bool) error {
 				if elapsed >= duration {
 					// Timer finished
 					fmt.Print("\r\nfinished!\r\n")
+					end := time.Now()
+					effectiveDuration := time.Since(start) - totalPausedDuration
+					if paused {
+						effectiveDuration -= time.Since(pauseStart)
+					}
+					summaryCh <- TimerSummary{
+						Start:    start,
+						End:      end,
+						Duration: effectiveDuration,
+						Mode:     "timer",
+						Finished: true,
+					}
 					return nil
 				}
 				displayTime = duration - elapsed
