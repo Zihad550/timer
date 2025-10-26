@@ -69,7 +69,7 @@ func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- Timer
 
 	// Setup signal handling
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM, syscall.SIGWINCH)
 
 	// Enter alt screen if fullscreen
 	if useFullscreen {
@@ -219,7 +219,13 @@ func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- Timer
 
 	for {
 		select {
-		case <-sigCh:
+		case sig := <-sigCh:
+			if sig == syscall.SIGWINCH {
+				// Terminal resized - force re-render
+				lastRenderedSec = -1
+				continue
+			}
+			// Handle interrupt/terminate signals
 			end := time.Now()
 			effectiveDuration := time.Since(start) - totalPausedDuration
 			if paused {
