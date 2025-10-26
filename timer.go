@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 )
@@ -331,6 +333,9 @@ func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- Timer
 						Duration: effectiveDuration,
 						Mode:     "timer",
 						Finished: true,
+					}
+					if runtime.GOOS == "linux" {
+						exec.Command("notify-send", "Timer", "Timer finished!").Run()
 					}
 					return nil
 				}
