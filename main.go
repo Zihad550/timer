@@ -35,11 +35,15 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  timer -p 5m              # 5 minutes countdown starting paused\n")
 	fmt.Fprintf(os.Stderr, "  timer -name \"Pomodoro\" 25m  # named timer with notification\n")
 	fmt.Fprintf(os.Stderr, "  timer --restore          # restore timer from sessions.json\n")
+	fmt.Fprintf(os.Stderr, "  timer --restore -i       # restore in inline mode regardless of saved setting\n")
 }
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+
+	// Load configuration from ~/.config/go-timer/config.json
+	loadConfig()
 
 	// Get args after initial flag parse
 	args := flag.Args()
@@ -91,8 +95,12 @@ func main() {
 		}
 	}
 
-	// Handle restore mode
+	// Handle restore mode (manual or auto)
 	isRestore := *restoreMode || *restoreModeS
+	if duration == 0 && restoreEnabled && !isRestore {
+		// Auto-restore if no duration specified and config has restore=true
+		isRestore = true
+	}
 	var restoredSession Session
 	var initialElapsed time.Duration
 	if isRestore {
@@ -117,10 +125,19 @@ func main() {
 	}
 
 	// Merge short/long flags - fullscreen is default, inline disables it
-	useInline := *inlineMode || *inlineModeS
-	initialPaused := *pausedMode || *pausedModeS
+	userProvidedInline := *inlineMode || *inlineModeS
+	userProvidedPaused := *pausedMode || *pausedModeS
+
+	useInline := userProvidedInline
+	initialPaused := userProvidedPaused
+
 	if isRestore {
-		initialPaused = restoredSession.Paused
+		if !userProvidedPaused {
+			initialPaused = restoredSession.Paused
+		}
+		if !userProvidedInline {
+			useInline = restoredSession.Inline
+		}
 	}
 
 	// Channel for timer summary

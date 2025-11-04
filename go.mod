@@ -1,4 +1,4 @@
-module github.com/Zihad550/timer
+module github.com/Zihad550/go-timer
 
 go 1.24.0
 

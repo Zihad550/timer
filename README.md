@@ -19,17 +19,17 @@ A minimal, blazing-fast TUI countdown timer and stopwatch for the terminal. Buil
 
 ```bash
 # Install latest stable version
-go install github.com/Zihad550/timer@v0.1.0
+go install github.com/Zihad550/go-timer@v0.1.0
 
 # Or install latest (may show development version)
-go install github.com/Zihad550/timer@latest
+go install github.com/Zihad550/go-timer@latest
 ```
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/Zihad550/timer.git
-cd timer
+git clone https://github.com/Zihad550/go-timer.git
+cd go-timer
 go build -o timer .
 ```
 
@@ -74,6 +74,51 @@ timer -version
 | `--version` | `-v` | Display version information |
 | `--name` | | Name for the timer (shown in notifications) |
 | `--paused` | `-p` | Start timer in paused state |
+
+### Configuration File
+
+Timer supports optional configuration via a JSON file located at `~/.config/go-timer/config.json`. This allows customization of display settings, timing intervals, and other parameters.
+
+#### Config File Format
+
+```json
+{
+  "tickIntervalFast": 100, // ms
+  "tickIntervalMedium": 500, // ms
+  "tickIntervalSlow": 1000, // ms
+  "warningThreshold": 50000, // ms
+  "glyphWidth": 8,
+  "glyphHeight": 7,
+  "glyphSpacing": 1,
+  "keyBufferSize": 10,
+  "defaultTermWidth": 80,
+  "defaultTermHeight": 24
+}
+```
+
+#### Configuration Options
+
+- `tickIntervalFast` (int): Update interval for timers < 1 minute (default: 100, range: 10-1000)
+- `tickIntervalMedium` (int): Update interval for timers 1-10 minutes (default: 500, range: 10-1000)
+- `tickIntervalSlow` (string): Update interval for timers > 10 minutes (default: "1s", range: 10ms-5s)
+- `warningThreshold` (string): Time remaining when warning color activates (default: "5m", range: 1m-1h)
+- `glyphWidth` (int): Width of each ASCII character in display (default: 8, range: 1-20)
+- `glyphHeight` (int): Height of each ASCII character in display (default: 7, range: 1-20)
+- `glyphSpacing` (int): Spacing between characters (default: 1, range: 0-5)
+- `keyBufferSize` (int): Size of keyboard input buffer (default: 10, range: 1-100)
+- `defaultTermWidth` (int): Default terminal width fallback (default: 80, range: 1-1000)
+- `defaultTermHeight` (int): Default terminal height fallback (default: 24, range: 1-1000)
+- `restore` (bool): Auto-restore last session when no duration is specified (default: false)
+
+#### Notes
+
+- The config file is optional - timer uses built-in defaults if not present
+- Command-line flags take precedence over config file settings
+- Duration values use Go's time.ParseDuration format (e.g., "100ms", "5m", "1h")
+- Invalid or missing config values fall back to defaults
+- Config values outside acceptable ranges are ignored to prevent performance issues
+- When `restore` is true and no duration is provided, timer automatically restores the last session with its original display mode (inline or fullscreen)
+- Command-line flags take precedence over restored session settings, allowing users to override saved behavior when restoring
 
 ## ⌨️ Keyboard Controls
 

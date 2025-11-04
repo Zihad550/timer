@@ -273,6 +273,7 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 		Mode:     "timer",
 		Name:     name,
 		Finished: false,
+		Inline:   !useFullscreen,
 	}
 	if isCounter {
 		initialSession.Mode = "counter"
@@ -310,6 +311,7 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 				Mode:     mode,
 				Name:     name,
 				Finished: false,
+				Inline:   !useFullscreen,
 			}
 			if !isCounter {
 				remaining := duration - effectiveDuration
@@ -375,6 +377,7 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 					Mode:     mode,
 					Name:     name,
 					Finished: false,
+					Inline:   !useFullscreen,
 				}
 				if !isCounter {
 					remaining := duration - effectiveDuration
@@ -412,6 +415,7 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 					Mode:     mode,
 					Name:     name,
 					Finished: false,
+					Inline:   !useFullscreen,
 				}
 				if !isCounter {
 					remaining := duration - effectiveDuration
@@ -466,6 +470,7 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 						Mode:      "timer",
 						Name:      name,
 						Finished:  true,
+						Inline:    !useFullscreen,
 					}
 					writeSession(finalSession) // Synchronous write for final state
 					summaryCh <- TimerSummary{
@@ -503,6 +508,7 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 					Mode:     "timer",
 					Name:     name,
 					Finished: false,
+					Inline:   !useFullscreen,
 				}
 				if isCounter {
 					session.Mode = "counter"

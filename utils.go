@@ -26,6 +26,7 @@ type Session struct {
 	Mode      string `json:"mode"` // "timer" or "counter"
 	Name      string `json:"name,omitempty"`
 	Finished  bool   `json:"finished"`
+	Inline    bool   `json:"inline"` // true if inline mode, false if fullscreen
 }
 
 func addSuffixIfArgIsNumber(s *string, suffix string) {
