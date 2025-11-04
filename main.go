@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -35,6 +36,28 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	// Get args after initial flag parse
+	args := flag.Args()
+
+	// Separate flags and positional from remaining args
+	var positional []string
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			if arg == "-i" || arg == "-inline" {
+				*inlineMode = true
+			} else if arg == "-p" || arg == "-paused" {
+				*pausedMode = true
+			} else if arg == "-v" || arg == "-version" {
+				*showVersion = true
+			} else {
+				usage()
+				os.Exit(1)
+			}
+		} else {
+			positional = append(positional, arg)
+		}
+	}
+
 	// Handle version
 	if *showVersion || *showVersionS {
 		fmt.Println("timer version", version)
@@ -42,24 +65,23 @@ func main() {
 	}
 
 	// Accept 0 or 1 positional arg
-	args := flag.Args()
-	if len(args) > 1 {
+	if len(positional) > 1 {
 		usage()
 		os.Exit(1)
 	}
 
 	// Parse duration (0 means counter mode)
 	var duration time.Duration
-	if len(args) == 0 {
+	if len(positional) == 0 {
 		// Counter mode - use 0 duration as signal
 		duration = 0
 	} else {
-		durStr := args[0]
+		durStr := positional[0]
 		addSuffixIfArgIsNumber(&durStr, "s")
 		var err error
 		duration, err = time.ParseDuration(durStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: invalid duration %q\n", args[0])
+			fmt.Fprintf(os.Stderr, "Error: invalid duration %q\n", positional[0])
 			os.Exit(1)
 		}
 	}
