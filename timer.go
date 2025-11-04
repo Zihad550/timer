@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -65,7 +66,16 @@ func getTickerInterval(duration time.Duration) time.Duration {
 	return tickIntervalSlow
 }
 
-func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, name string, summaryCh chan<- TimerSummary) error {
+func writeSession(session Session) {
+	data, err := json.MarshalIndent(session, "", "  ")
+	if err != nil {
+		// Silently ignore write errors to not disrupt the timer
+		return
+	}
+	_ = os.WriteFile("sessions.json", data, 0644)
+}
+
+func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, name string, initialElapsed time.Duration, summaryCh chan<- TimerSummary) error {
 	// Determine if counter mode (duration == 0)
 	isCounter := duration == 0
 
@@ -181,6 +191,9 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 	}()
 
 	start := time.Now()
+	if initialElapsed > 0 {
+		start = start.Add(-initialElapsed)
+	}
 	// Use adaptive ticker interval based on duration
 	tickInterval := getTickerInterval(duration)
 	var ticker *time.Ticker = time.NewTicker(tickInterval)
@@ -244,6 +257,30 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 		}
 		fmt.Print(cachedOutput)
 	}
+
+	// Write initial session state
+	var initialElapsedForDisplay time.Duration
+	if isCounter {
+		initialElapsedForDisplay = initialDisplayTime
+	} else {
+		initialElapsedForDisplay = initialElapsed
+	}
+	initialSession := Session{
+		Start:    start.Format("2006-01-02:15-04-05"),
+		Current:  start.Format("2006-01-02:15-04-05"),
+		Elapsed:  formatDuration(initialElapsedForDisplay),
+		Paused:   paused,
+		Mode:     "timer",
+		Name:     name,
+		Finished: false,
+	}
+	if isCounter {
+		initialSession.Mode = "counter"
+	} else {
+		initialSession.Remaining = formatDuration(initialDisplayTime)
+	}
+	go writeSession(initialSession)
+
 	lastRenderedSec = int64(initialDisplayTime.Seconds())
 
 	for {
@@ -264,6 +301,24 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 			if isCounter {
 				mode = "counter"
 			}
+			// Write final session state
+			signalSession := Session{
+				Start:    start.Format("2006-01-02:15-04-05"),
+				Current:  end.Format("2006-01-02:15-04-05"),
+				Elapsed:  formatDuration(effectiveDuration),
+				Paused:   paused,
+				Mode:     mode,
+				Name:     name,
+				Finished: false,
+			}
+			if !isCounter {
+				remaining := duration - effectiveDuration
+				if remaining < 0 {
+					remaining = 0
+				}
+				signalSession.Remaining = formatDuration(remaining)
+			}
+			writeSession(signalSession) // Synchronous write for final state
 			summaryCh <- TimerSummary{
 				Start:    start,
 				End:      end,
@@ -311,6 +366,24 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 				if isCounter {
 					mode = "counter"
 				}
+				// Write final session state
+				quitSession := Session{
+					Start:    start.Format("2006-01-02:15-04-05"),
+					Current:  end.Format("2006-01-02:15-04-05"),
+					Elapsed:  formatDuration(effectiveDuration),
+					Paused:   paused,
+					Mode:     mode,
+					Name:     name,
+					Finished: false,
+				}
+				if !isCounter {
+					remaining := duration - effectiveDuration
+					if remaining < 0 {
+						remaining = 0
+					}
+					quitSession.Remaining = formatDuration(remaining)
+				}
+				writeSession(quitSession) // Synchronous write for final state
 				summaryCh <- TimerSummary{
 					Start:    start,
 					End:      end,
@@ -330,6 +403,24 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 				if isCounter {
 					mode = "counter"
 				}
+				// Write final session state
+				ctrlcSession := Session{
+					Start:    start.Format("2006-01-02:15-04-05"),
+					Current:  end.Format("2006-01-02:15-04-05"),
+					Elapsed:  formatDuration(effectiveDuration),
+					Paused:   paused,
+					Mode:     mode,
+					Name:     name,
+					Finished: false,
+				}
+				if !isCounter {
+					remaining := duration - effectiveDuration
+					if remaining < 0 {
+						remaining = 0
+					}
+					ctrlcSession.Remaining = formatDuration(remaining)
+				}
+				writeSession(ctrlcSession) // Synchronous write for final state
 				summaryCh <- TimerSummary{
 					Start:    start,
 					End:      end,
@@ -365,6 +456,18 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 					if paused {
 						effectiveDuration -= time.Since(pauseStart)
 					}
+					// Write final session state
+					finalSession := Session{
+						Start:     start.Format("2006-01-02:15-04-05"),
+						Current:   end.Format("2006-01-02:15-04-05"),
+						Elapsed:   formatDuration(effectiveDuration),
+						Remaining: formatDuration(0),
+						Paused:    false,
+						Mode:      "timer",
+						Name:      name,
+						Finished:  true,
+					}
+					writeSession(finalSession) // Synchronous write for final state
 					summaryCh <- TimerSummary{
 						Start:    start,
 						End:      end,
@@ -389,6 +492,24 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, na
 			// Re-render when second changes OR when paused state changes
 			if currentSec != lastRenderedSec || lastRenderedSec == -1 {
 				lastRenderedSec = currentSec
+
+				// Write current session to file
+				currentTime := time.Now()
+				session := Session{
+					Start:    start.Format("2006-01-02:15-04-05"),
+					Current:  currentTime.Format("2006-01-02:15-04-05"),
+					Elapsed:  formatDuration(elapsed),
+					Paused:   paused,
+					Mode:     "timer",
+					Name:     name,
+					Finished: false,
+				}
+				if isCounter {
+					session.Mode = "counter"
+				} else {
+					session.Remaining = formatDuration(displayTime)
+				}
+				go writeSession(session) // Write asynchronously to avoid blocking UI
 
 				// Format time
 				timeStr := formatHMS(displayTime)

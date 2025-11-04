@@ -16,6 +16,8 @@ var (
 	pausedMode   = flag.Bool("paused", false, "start timer in paused state")
 	pausedModeS  = flag.Bool("p", false, "start timer in paused state (shorthand for -paused)")
 	timerName    = flag.String("name", "", "name for the timer")
+	restoreMode  = flag.Bool("restore", false, "restore timer from sessions.json")
+	restoreModeS = flag.Bool("r", false, "restore timer from sessions.json (shorthand)")
 )
 
 func usage() {
@@ -32,6 +34,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  timer -i 30s             # inline mode countdown\n")
 	fmt.Fprintf(os.Stderr, "  timer -p 5m              # 5 minutes countdown starting paused\n")
 	fmt.Fprintf(os.Stderr, "  timer -name \"Pomodoro\" 25m  # named timer with notification\n")
+	fmt.Fprintf(os.Stderr, "  timer --restore          # restore timer from sessions.json\n")
 }
 
 func main() {
@@ -88,15 +91,43 @@ func main() {
 		}
 	}
 
+	// Handle restore mode
+	isRestore := *restoreMode || *restoreModeS
+	var restoredSession Session
+	var initialElapsed time.Duration
+	if isRestore {
+		var err error
+		restoredSession, err = loadSession()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		// Override parameters from session
+		if restoredSession.Mode == "counter" {
+			duration = 0
+		} else {
+			elapsed := parseFormattedDuration(restoredSession.Elapsed)
+			remaining := parseFormattedDuration(restoredSession.Remaining)
+			duration = elapsed + remaining
+			initialElapsed = elapsed
+		}
+		if *timerName == "" {
+			*timerName = restoredSession.Name
+		}
+	}
+
 	// Merge short/long flags - fullscreen is default, inline disables it
 	useInline := *inlineMode || *inlineModeS
 	initialPaused := *pausedMode || *pausedModeS
+	if isRestore {
+		initialPaused = restoredSession.Paused
+	}
 
 	// Channel for timer summary
 	summaryCh := make(chan TimerSummary, 1)
 
 	// Run timer (fullscreen unless inline flag is set)
-	if err := runTimer(duration, !useInline, initialPaused, *timerName, summaryCh); err != nil {
+	if err := runTimer(duration, !useInline, initialPaused, *timerName, initialElapsed, summaryCh); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
