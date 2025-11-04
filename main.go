@@ -12,6 +12,8 @@ var (
 	inlineModeS  = flag.Bool("i", false, "run in inline mode (shorthand for -inline)")
 	showVersion  = flag.Bool("version", false, "display version information")
 	showVersionS = flag.Bool("v", false, "display version information (shorthand for -version)")
+	pausedMode   = flag.Bool("paused", false, "start timer in paused state")
+	pausedModeS  = flag.Bool("p", false, "start timer in paused state (shorthand for -paused)")
 )
 
 func usage() {
@@ -26,6 +28,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  timer 5          # 5 seconds countdown (fullscreen)\n")
 	fmt.Fprintf(os.Stderr, "  timer 2m         # 2 minutes countdown (fullscreen)\n")
 	fmt.Fprintf(os.Stderr, "  timer -i 30s     # inline mode countdown\n")
+	fmt.Fprintf(os.Stderr, "  timer -p 5m      # 5 minutes countdown starting paused\n")
 }
 
 func main() {
@@ -63,12 +66,13 @@ func main() {
 
 	// Merge short/long flags - fullscreen is default, inline disables it
 	useInline := *inlineMode || *inlineModeS
+	initialPaused := *pausedMode || *pausedModeS
 
 	// Channel for timer summary
 	summaryCh := make(chan TimerSummary, 1)
 
 	// Run timer (fullscreen unless inline flag is set)
-	if err := runTimer(duration, !useInline, summaryCh); err != nil {
+	if err := runTimer(duration, !useInline, initialPaused, summaryCh); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

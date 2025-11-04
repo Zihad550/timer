@@ -65,7 +65,7 @@ func getTickerInterval(duration time.Duration) time.Duration {
 	return tickIntervalSlow
 }
 
-func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- TimerSummary) error {
+func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, summaryCh chan<- TimerSummary) error {
 	// Determine if counter mode (duration == 0)
 	isCounter := duration == 0
 
@@ -183,13 +183,20 @@ func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- Timer
 	start := time.Now()
 	// Use adaptive ticker interval based on duration
 	tickInterval := getTickerInterval(duration)
-	ticker := time.NewTicker(tickInterval)
-	defer ticker.Stop()
+	var ticker *time.Ticker = time.NewTicker(tickInterval)
+	defer func() {
+		if ticker != nil {
+			ticker.Stop()
+		}
+	}()
 
 	// Pause state
-	var paused bool
+	var paused = initialPaused
 	var pauseStart time.Time
 	var totalPausedDuration time.Duration
+	if paused {
+		pauseStart = time.Now()
+	}
 
 	// Cache for rendered output
 	var lastRenderedSec int64 = -1
@@ -207,14 +214,34 @@ func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- Timer
 
 	// Render initial state
 	timeStr := formatHMS(initialDisplayTime)
+
+	// Determine color based on state and time remaining
+	var color string
+	if paused {
+		color = blueColor
+	} else if !isCounter && initialDisplayTime < warningThreshold {
+		// Only show red warning in timer mode
+		color = redColor
+	} else {
+		color = ""
+	}
+
 	if useFullscreen {
 		width, height := getTerminalSize()
 		bigText := renderBigTime(timeStr, width, height)
 		centeredText := centerText(bigText, width, height)
-		cachedOutput = centeredText
+		if color != "" {
+			cachedOutput = color + centeredText + resetStyle
+		} else {
+			cachedOutput = centeredText
+		}
 		fmt.Print(clearScreen + moveCursor(1, 1) + fixNewlines(cachedOutput))
 	} else {
-		cachedOutput = fmt.Sprintf("\r%s   ", timeStr)
+		if color != "" {
+			cachedOutput = fmt.Sprintf("\r%s%s%s   ", color, timeStr, resetStyle)
+		} else {
+			cachedOutput = fmt.Sprintf("\r%s   ", timeStr)
+		}
 		fmt.Print(cachedOutput)
 	}
 	lastRenderedSec = int64(initialDisplayTime.Seconds())
@@ -254,10 +281,20 @@ func runTimer(duration time.Duration, useFullscreen bool, summaryCh chan<- Timer
 					// Unpause
 					totalPausedDuration += time.Since(pauseStart)
 					paused = false
+					// Restart ticker with normal interval
+					if ticker != nil {
+						ticker.Stop()
+					}
+					ticker = time.NewTicker(tickInterval)
 				} else {
 					// Pause
 					paused = true
 					pauseStart = time.Now()
+					// Switch to slow ticker to reduce CPU usage
+					if ticker != nil {
+						ticker.Stop()
+					}
+					ticker = time.NewTicker(tickIntervalSlow)
 				}
 				// Force re-render
 				lastRenderedSec = -1
