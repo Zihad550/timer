@@ -11,6 +11,7 @@ type TimerSummary struct {
 	Duration time.Duration
 	Mode     string // "timer" or "counter"
 	Finished bool   // true if completed, false if quit/interrupted
+	Name     string // optional name for the timer
 }
 
 func addSuffixIfArgIsNumber(s *string, suffix string) {

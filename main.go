@@ -15,6 +15,7 @@ var (
 	showVersionS = flag.Bool("v", false, "display version information (shorthand for -version)")
 	pausedMode   = flag.Bool("paused", false, "start timer in paused state")
 	pausedModeS  = flag.Bool("p", false, "start timer in paused state (shorthand for -paused)")
+	timerName    = flag.String("name", "", "name for the timer")
 )
 
 func usage() {
@@ -25,11 +26,12 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "Options:\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nExamples:\n")
-	fmt.Fprintf(os.Stderr, "  timer            # counter/stopwatch (counts up)\n")
-	fmt.Fprintf(os.Stderr, "  timer 5          # 5 seconds countdown (fullscreen)\n")
-	fmt.Fprintf(os.Stderr, "  timer 2m         # 2 minutes countdown (fullscreen)\n")
-	fmt.Fprintf(os.Stderr, "  timer -i 30s     # inline mode countdown\n")
-	fmt.Fprintf(os.Stderr, "  timer -p 5m      # 5 minutes countdown starting paused\n")
+	fmt.Fprintf(os.Stderr, "  timer                    # counter/stopwatch (counts up)\n")
+	fmt.Fprintf(os.Stderr, "  timer 5                  # 5 seconds countdown (fullscreen)\n")
+	fmt.Fprintf(os.Stderr, "  timer 2m                 # 2 minutes countdown (fullscreen)\n")
+	fmt.Fprintf(os.Stderr, "  timer -i 30s             # inline mode countdown\n")
+	fmt.Fprintf(os.Stderr, "  timer -p 5m              # 5 minutes countdown starting paused\n")
+	fmt.Fprintf(os.Stderr, "  timer -name \"Pomodoro\" 25m  # named timer with notification\n")
 }
 
 func main() {
@@ -94,13 +96,16 @@ func main() {
 	summaryCh := make(chan TimerSummary, 1)
 
 	// Run timer (fullscreen unless inline flag is set)
-	if err := runTimer(duration, !useInline, initialPaused, summaryCh); err != nil {
+	if err := runTimer(duration, !useInline, initialPaused, *timerName, summaryCh); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Receive and print summary
 	summary := <-summaryCh
+	if summary.Name != "" {
+		fmt.Printf("Name: %s\n", summary.Name)
+	}
 	fmt.Printf("Start: %s\n", summary.Start.Format("2006-01-02 15:04:05"))
 	fmt.Printf("End: %s\n", summary.End.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Duration: %s\n", summary.Duration)

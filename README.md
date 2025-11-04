@@ -53,6 +53,9 @@ timer 1h
 # Inline mode (no fullscreen)
 timer -i 30s
 
+# Named timer (shows name in notification)
+timer -name "Pomodoro Session" 25m
+
 # Display version
 timer -version
 ```
@@ -69,6 +72,8 @@ timer -version
 |------|-----------|-------------|
 | `--inline` | `-i` | Run in inline mode (disable fullscreen TUI) |
 | `--version` | `-v` | Display version information |
+| `--name` | | Name for the timer (shown in notifications) |
+| `--paused` | `-p` | Start timer in paused state |
 
 ## ⌨️ Keyboard Controls
 

@@ -65,7 +65,7 @@ func getTickerInterval(duration time.Duration) time.Duration {
 	return tickIntervalSlow
 }
 
-func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, summaryCh chan<- TimerSummary) error {
+func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, name string, summaryCh chan<- TimerSummary) error {
 	// Determine if counter mode (duration == 0)
 	isCounter := duration == 0
 
@@ -270,6 +270,7 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, su
 				Duration: effectiveDuration,
 				Mode:     mode,
 				Finished: false,
+				Name:     name,
 			}
 			return nil
 
@@ -370,9 +371,14 @@ func runTimer(duration time.Duration, useFullscreen bool, initialPaused bool, su
 						Duration: effectiveDuration,
 						Mode:     "timer",
 						Finished: true,
+						Name:     name,
 					}
 					if runtime.GOOS == "linux" {
-						exec.Command("notify-send", "Timer", "Timer finished!").Run()
+						title := "Timer"
+						if name != "" {
+							title = name
+						}
+						exec.Command("notify-send", title, "Timer finished!").Run()
 					}
 					return nil
 				}
